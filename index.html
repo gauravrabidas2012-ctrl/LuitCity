@@ -1,0 +1,2078 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+<meta name="theme-color" content="#080a0d">
+<title>LUIT CITY | Trendix Studios</title>
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #080a0d;
+    font-family: Arial, Helvetica, sans-serif;
+    touch-action: none;
+    user-select: none;
+}
+
+body {
+    color: #ffffff;
+}
+
+#game {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: #080a0d;
+}
+
+/* PORTRAIT BLOCKER */
+
+#rotateScreen {
+    position: fixed;
+    inset: 0;
+    background: #080a0d;
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+}
+
+.rotateIcon {
+    font-size: 55px;
+    margin-bottom: 25px;
+    animation: rotatePhone 2s infinite ease-in-out;
+}
+
+.rotateText {
+    font-size: 13px;
+    letter-spacing: 5px;
+    color: #e8edf2;
+}
+
+.rotateSub {
+    margin-top: 12px;
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: #777f89;
+}
+
+@keyframes rotatePhone {
+    0%, 30% {
+        transform: rotate(0deg);
+    }
+    70%, 100% {
+        transform: rotate(90deg);
+    }
+}
+
+/* LOADING */
+
+#loading {
+    position: fixed;
+    inset: 0;
+    background: #080a0d;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.loadingContent {
+    text-align: center;
+}
+
+.loadingLogo {
+    font-size: 15px;
+    font-weight: bold;
+    letter-spacing: 7px;
+}
+
+.loadingLine {
+    width: 120px;
+    height: 1px;
+    background: #242b32;
+    margin: 22px auto;
+    overflow: hidden;
+}
+
+.loadingLine::after {
+    content: "";
+    display: block;
+    height: 100%;
+    width: 35%;
+    background: #d7dde3;
+    animation: loading 1.2s infinite ease-in-out;
+}
+
+.loadingText {
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: #707781;
+}
+
+@keyframes loading {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(350%); }
+}
+</style>
+</head>
+
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="rotateScreen">
+    <div class="rotateIcon">▱</div>
+    <div class="rotateText">ROTATE YOUR DEVICE</div>
+    <div class="rotateSub">LUIT CITY REQUIRES LANDSCAPE MODE</div>
+</div>
+
+<div id="loading">
+    <div class="loadingContent">
+        <div class="loadingLogo">TRENDIX STUDIOS</div>
+        <div class="loadingLine"></div>
+        <div class="loadingText">INITIALIZING SYSTEMS</div>
+    </div>
+</div>
+
+<script>
+
+/* =====================================
+   LUIT CITY — PART 1
+   TRENDIX STUDIOS
+===================================== */
+
+"use strict";
+
+/* ---------- CANVAS ---------- */
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d", {
+    alpha: false,
+    desynchronized: true
+});
+
+const rotateScreen = document.getElementById("rotateScreen");
+const loadingScreen = document.getElementById("loading");
+
+let W = 0;
+let H = 0;
+let DPR = 1;
+
+function resize() {
+
+    W = window.innerWidth;
+    H = window.innerHeight;
+
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+
+    canvas.style.width = W + "px";
+    canvas.style.height = H + "px";
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+window.addEventListener("resize", resize);
+window.addEventListener("orientationchange", resize);
+
+resize();
+
+/* ---------- ENGINE ---------- */
+
+const ENGINE = {
+
+    running: true,
+
+    screen: "intro",
+
+    time: 0,
+
+    delta: 0,
+
+    fps: 0,
+
+    lastFrame: 0,
+
+    introTimer: 0,
+
+    transition: 0,
+
+    settings: {
+        sound: true,
+        quality: "HIGH"
+    },
+
+    world: {
+        width: 6000,
+        height: 6000
+    },
+
+    player: {
+        x: 3000,
+        y: 3000,
+        angle: 0,
+        speed: 0
+    }
+};
+
+/* ---------- INPUT ---------- */
+
+const INPUT = {
+
+    keys: {},
+
+    pointer: {
+        x: 0,
+        y: 0,
+        down: false,
+        tapped: false
+    }
+};
+
+window.addEventListener("keydown", e => {
+
+    INPUT.keys[e.key.toLowerCase()] = true;
+
+});
+
+window.addEventListener("keyup", e => {
+
+    INPUT.keys[e.key.toLowerCase()] = false;
+
+});
+
+canvas.addEventListener("pointerdown", e => {
+
+    INPUT.pointer.x = e.clientX;
+    INPUT.pointer.y = e.clientY;
+    INPUT.pointer.down = true;
+    INPUT.pointer.tapped = true;
+
+});
+
+canvas.addEventListener("pointerup", e => {
+
+    INPUT.pointer.x = e.clientX;
+    INPUT.pointer.y = e.clientY;
+    INPUT.pointer.down = false;
+
+});
+
+canvas.addEventListener("pointermove", e => {
+
+    INPUT.pointer.x = e.clientX;
+    INPUT.pointer.y = e.clientY;
+
+});
+
+/* ---------- UTILITIES ---------- */
+
+function clamp(v, min, max) {
+    return Math.max(min, Math.min(max, v));
+}
+
+function lerp(a, b, t) {
+    return a + (b - a) * t;
+}
+
+function random(min, max) {
+    return Math.random() * (max - min) + min;
+}
+
+function fade(value) {
+    return clamp(value, 0, 1);
+}
+
+function easeOut(t) {
+    t = clamp(t, 0, 1);
+    return 1 - Math.pow(1 - t, 3);
+}
+
+function easeInOut(t) {
+    t = clamp(t, 0, 1);
+    return t * t * (3 - 2 * t);
+}
+
+/* ---------- LANDSCAPE + FULLSCREEN ---------- */
+
+async function activateLandscape() {
+
+    try {
+
+        if (document.documentElement.requestFullscreen) {
+            await document.documentElement.requestFullscreen();
+        }
+
+    } catch (e) {
+        // Fullscreen may be restricted by the browser.
+    }
+
+    try {
+
+        if (screen.orientation &&
+            screen.orientation.lock) {
+
+            await screen.orientation.lock("landscape");
+
+        }
+
+    } catch (e) {
+        // Orientation lock is browser-dependent.
+    }
+
+    updateOrientation();
+}
+
+function updateOrientation() {
+
+    const portrait = window.innerHeight > window.innerWidth;
+
+    if (portrait) {
+
+        rotateScreen.style.display = "flex";
+
+    } else {
+
+        rotateScreen.style.display = "none";
+
+    }
+
+}
+
+/* ---------- DRAWING HELPERS ---------- */
+
+function clear() {
+
+    ctx.fillStyle = "#080a0d";
+    ctx.fillRect(0, 0, W, H);
+
+}
+
+function text(str, x, y, size, color, spacing = 0, weight = "400") {
+
+    ctx.fillStyle = color;
+
+    ctx.font = `${weight} ${size}px Arial`;
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (!spacing) {
+
+        ctx.fillText(str, x, y);
+
+    } else {
+
+        let total = 0;
+
+        for (let i = 0; i < str.length; i++) {
+            total += ctx.measureText(str[i]).width + spacing;
+        }
+
+        total -= spacing;
+
+        let pos = x - total / 2;
+
+        for (const char of str) {
+
+            ctx.fillText(char, pos, y);
+
+            pos += ctx.measureText(char).width + spacing;
+
+        }
+
+    }
+
+}
+
+function line(x1, y1, x2, y2, color, width = 1) {
+
+    ctx.beginPath();
+
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+
+    ctx.stroke();
+
+}
+
+function rect(x, y, w, h, color) {
+
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, w, h);
+
+}
+
+function outlineRect(x, y, w, h, color, width = 1) {
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.strokeRect(x, y, w, h);
+
+}
+
+/* ---------- BUTTONS ---------- */
+
+const BUTTONS = [];
+
+function button(label, x, y, w, h, selected = false) {
+
+    BUTTONS.push({
+        label,
+        x,
+        y,
+        w,
+        h
+    });
+
+    const hovering =
+        INPUT.pointer.x >= x &&
+        INPUT.pointer.x <= x + w &&
+        INPUT.pointer.y >= y &&
+        INPUT.pointer.y <= y + h;
+
+    const active = selected || hovering;
+
+    if (active) {
+
+        rect(x, y, w, h, "#dce2e7");
+
+        text(
+            label,
+            x + w / 2,
+            y + h / 2,
+            12,
+            "#080a0d",
+            2,
+            "600"
+        );
+
+    } else {
+
+        outlineRect(x, y, w, h, "#323a43");
+
+        text(
+            label,
+            x + w / 2,
+            y + h / 2,
+            12,
+            "#b7c0c9",
+            2
+        );
+
+    }
+
+}
+
+function processButtons() {
+
+    if (!INPUT.pointer.tapped) return;
+
+    const px = INPUT.pointer.x;
+    const py = INPUT.pointer.y;
+
+    for (const b of BUTTONS) {
+
+        if (
+            px >= b.x &&
+            px <= b.x + b.w &&
+            py >= b.y &&
+            py <= b.y + b.h
+        ) {
+
+            handleButton(b.label);
+
+            break;
+
+        }
+
+    }
+
+    INPUT.pointer.tapped = false;
+
+}
+
+/* ---------- INTRO ---------- */
+
+function renderIntro() {
+
+    clear();
+
+    ENGINE.introTimer += ENGINE.delta;
+
+    const t = ENGINE.introTimer;
+
+    // Minimal cinematic lighting
+
+    const gradient = ctx.createRadialGradient(
+        W / 2, H / 2, 10,
+        W / 2, H / 2, Math.max(W, H) * 0.6
+    );
+
+    gradient.addColorStop(0, "#111820");
+    gradient.addColorStop(1, "#080a0d");
+
+    rect(0, 0, W, H, "#080a0d");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, W, H);
+
+    // Intro stage 1
+
+    if (t < 3.2) {
+
+        let alpha = 1;
+
+        if (t < 0.5) alpha = t / 0.5;
+        if (t > 2.5) alpha = 1 - (t - 2.5) / 0.7;
+
+        ctx.globalAlpha = fade(alpha);
+
+        text(
+            "TRENDIX STUDIOS",
+            W / 2,
+            H / 2 - 8,
+            Math.min(24, W * 0.035),
+            "#edf1f4",
+            7,
+            "600"
+        );
+
+        line(
+            W / 2 - 65,
+            H / 2 + 35,
+            W / 2 + 65,
+            H / 2 + 35,
+            "#3a434d"
+        );
+
+        text(
+            "AN ORIGINAL GAME PRODUCTION",
+            W / 2,
+            H / 2 + 60,
+            9,
+            "#818b96",
+            3
+        );
+
+        ctx.globalAlpha = 1;
+
+    }
+
+    // Intro stage 2
+
+    if (t >= 3.2 && t < 7.2) {
+
+        const local = t - 3.2;
+
+        let alpha = 1;
+
+        if (local < 0.7) alpha = local / 0.7;
+        if (local > 3.2) alpha = 1 - (local - 3.2) / 0.8;
+
+        ctx.globalAlpha = fade(alpha);
+
+        text(
+            "LUIT CITY",
+            W / 2,
+            H / 2 - 12,
+            Math.min(60, W * 0.09),
+            "#f2f4f6",
+            7,
+            "700"
+        );
+
+        text(
+            "THE CITY KNOWS NO MERCY",
+            W / 2,
+            H / 2 + 42,
+            10,
+            "#8f9aa5",
+            4
+        );
+
+        ctx.globalAlpha = 1;
+
+    }
+
+    // Continue to menu
+
+    if (t >= 7.2) {
+
+        ENGINE.screen = "menu";
+
+        ENGINE.introTimer = 0;
+
+    }
+
+}
+
+/* ---------- MAIN MENU ---------- */
+
+function renderMenu() {
+
+    clear();
+
+    BUTTONS.length = 0;
+
+    // Background
+
+    const gradient = ctx.createLinearGradient(
+        0, 0, W, H
+    );
+
+    gradient.addColorStop(0, "#10151b");
+    gradient.addColorStop(0.5, "#090c10");
+    gradient.addColorStop(1, "#080a0d");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, W, H);
+
+    // Background decorative lines
+
+    for (let i = 0; i < 7; i++) {
+
+        const y = H * 0.2 + i * 35;
+
+        line(
+            W * 0.58,
+            y,
+            W,
+            y,
+            "#111820",
+            1
+        );
+
+    }
+
+    // Branding
+
+    text(
+        "TRENDIX STUDIOS",
+        W * 0.16,
+        H * 0.16,
+        10,
+        "#929ca7",
+        4
+    );
+
+    line(
+        W * 0.07,
+        H * 0.21,
+        W * 0.25,
+        H * 0.21,
+        "#343d47"
+    );
+
+    // Main title
+
+    text(
+        "LUIT CITY",
+        W * 0.28,
+        H * 0.46,
+        Math.min(54, W * 0.075),
+        "#edf1f5",
+        4,
+        "700"
+    );
+
+    text(
+        "THE CITY KNOWS NO MERCY",
+        W * 0.28,
+        H * 0.55,
+        10,
+        "#808b97",
+        4
+    );
+
+    // Menu buttons
+
+    const bw = Math.min(230, W * 0.32);
+    const bh = 43;
+    const gap = 12;
+
+    const startX = W * 0.66;
+    const startY = H * 0.38;
+
+    button(
+        "NEW GAME",
+        startX,
+        startY,
+        bw,
+        bh
+    );
+
+    button(
+        "SETTINGS",
+        startX,
+        startY + bh + gap,
+        bw,
+        bh
+    );
+
+    button(
+        "CREDITS",
+        startX,
+        startY + (bh + gap) * 2,
+        bw,
+        bh
+    );
+
+    // Footer
+
+    text(
+        "ORIGINAL OPEN-WORLD PROJECT",
+        W / 2,
+        H - 27,
+        9,
+        "#505963",
+        3
+    );
+
+    text(
+        "VERSION 0.1",
+        W - 65,
+        H - 27,
+        8,
+        "#414951",
+        2
+    );
+
+    processButtons();
+
+}
+
+/* ---------- SETTINGS ---------- */
+
+function renderSettings() {
+
+    clear();
+
+    BUTTONS.length = 0;
+
+    text(
+        "SETTINGS",
+        W / 2,
+        H * 0.2,
+        28,
+        "#e9edf1",
+        5,
+        "600"
+    );
+
+    line(
+        W * 0.25,
+        H * 0.28,
+        W * 0.75,
+        H * 0.28,
+        "#303842"
+    );
+
+    button(
+        "SOUND : " + (ENGINE.settings.sound ? "ON" : "OFF"),
+        W / 2 - 110,
+        H * 0.38,
+        220,
+        45
+    );
+
+    button(
+        "QUALITY : " + ENGINE.settings.quality,
+        W / 2 - 110,
+        H * 0.38 + 58,
+        220,
+        45
+    );
+
+    button(
+        "BACK",
+        W / 2 - 110,
+        H * 0.38 + 116,
+        220,
+        45
+    );
+
+    processButtons();
+
+}
+
+/* ---------- CREDITS ---------- */
+
+function renderCredits() {
+
+    clear();
+
+    BUTTONS.length = 0;
+
+    text(
+        "CREDITS",
+        W / 2,
+        H * 0.24,
+        26,
+        "#e9edf1",
+        5,
+        "600"
+    );
+
+    text(
+        "TRENDIX STUDIOS",
+        W / 2,
+        H * 0.42,
+        16,
+        "#c4ccd4",
+        5
+    );
+
+    text(
+        "AN ORIGINAL GAME PROJECT",
+        W / 2,
+        H * 0.49,
+        10,
+        "#7d8791",
+        3
+    );
+
+    text(
+        "LUIT CITY",
+        W / 2,
+        H * 0.58,
+        22,
+        "#f0f3f5",
+        5,
+        "600"
+    );
+
+    button(
+        "BACK",
+        W / 2 - 100,
+        H * 0.72,
+        200,
+        45
+    );
+
+    processButtons();
+
+}
+
+/* ---------- GAME SCREEN ---------- */
+
+function renderGame() {
+
+    clear();
+
+    BUTTONS.length = 0;
+
+    // Part 1 gameplay placeholder
+
+    text(
+        "LUIT CITY",
+        W / 2,
+        H * 0.30,
+        34,
+        "#edf1f5",
+        5,
+        "700"
+    );
+
+    text(
+        "CITY ENGINE INITIALIZED",
+        W / 2,
+        H * 0.43,
+        11,
+        "#909aa5",
+        4
+    );
+
+    text(
+        "WORLD SYSTEMS WILL BE ADDED IN THE NEXT PART",
+        W / 2,
+        H * 0.52,
+        9,
+        "#505a64",
+        2
+    );
+
+    button(
+        "RETURN TO MENU",
+        W / 2 - 115,
+        H * 0.68,
+        230,
+        45
+    );
+
+    processButtons();
+
+}
+
+/* ---------- BUTTON ACTIONS ---------- */
+
+function handleButton(label) {
+
+    switch (label) {
+
+        case "NEW GAME":
+
+            activateLandscape();
+
+            ENGINE.screen = "game";
+
+            break;
+
+        case "SETTINGS":
+
+            ENGINE.screen = "settings";
+
+            break;
+
+        case "CREDITS":
+
+            ENGINE.screen = "credits";
+
+            break;
+
+        case "BACK":
+
+            ENGINE.screen = "menu";
+
+            break;
+
+        case "RETURN TO MENU":
+
+            ENGINE.screen = "menu";
+
+            break;
+
+        default:
+
+            if (label.startsWith("SOUND")) {
+
+                ENGINE.settings.sound =
+                    !ENGINE.settings.sound;
+
+            }
+
+            if (label.startsWith("QUALITY")) {
+
+                ENGINE.settings.quality =
+                    ENGINE.settings.quality === "HIGH"
+                    ? "LOW"
+                    : "HIGH";
+
+            }
+
+            break;
+
+    }
+
+}
+
+/* ---------- FPS ---------- */
+
+let fpsCounter = 0;
+let fpsTimer = 0;
+
+function calculateFPS(dt) {
+
+    fpsTimer += dt;
+    fpsCounter++;
+
+    if (fpsTimer >= 1) {
+
+        ENGINE.fps = fpsCounter;
+
+        fpsCounter = 0;
+        fpsTimer = 0;
+
+    }
+
+}
+
+/* ---------- ENGINE UPDATE ---------- */
+
+function update(dt) {
+
+    ENGINE.delta = dt;
+    ENGINE.time += dt;
+
+    calculateFPS(dt);
+
+    updateOrientation();
+
+}
+
+/* ---------- RENDER ---------- */
+
+function render() {
+
+    switch (ENGINE.screen) {
+
+        case "intro":
+            renderIntro();
+            break;
+
+        case "menu":
+            renderMenu();
+            break;
+
+        case "settings":
+            renderSettings();
+            break;
+
+        case "credits":
+            renderCredits();
+            break;
+
+        case "game":
+            renderGame();
+            break;
+
+    }
+
+}
+
+/* ---------- GAME LOOP ---------- */
+
+function loop(timestamp) {
+
+    if (!ENGINE.running) return;
+
+    if (!ENGINE.lastFrame) {
+        ENGINE.lastFrame = timestamp;
+    }
+
+    let dt = (timestamp - ENGINE.lastFrame) / 1000;
+
+    ENGINE.lastFrame = timestamp;
+
+    dt = clamp(dt, 0, 0.05);
+
+    update(dt);
+
+    render();
+
+    requestAnimationFrame(loop);
+
+}
+
+/* ---------- BOOT ---------- */
+
+function boot() {
+
+    resize();
+
+    setTimeout(() => {
+
+        loadingScreen.style.opacity = "0";
+
+        setTimeout(() => {
+
+            loadingScreen.style.display = "none";
+
+            ENGINE.screen = "intro";
+
+            requestAnimationFrame(loop);
+
+        }, 500);
+
+    }, 1200);
+
+}
+
+boot();
+
+/* ---------- VISIBILITY ---------
+- */
+
+document.addEventListener("visibilitychange", () => {
+
+    ENGINE.lastFrame = 0;
+
+});
+
+window.addEventListener("contextmenu", e => {
+    e.preventDefault();
+});
+
+</script>
+
+</body>
+</html>
+/* =========================================================
+   LUIT CITY — PART 2
+   CITY WORLD ENGINE
+   TRENDIX STUDIOS
+   ========================================================= */
+
+const CITY = {
+    width: 6000,
+    height: 6000,
+
+    roads: [],
+    buildings: [],
+    parks: [],
+    trees: [],
+    bridges: [],
+    districts: [],
+    landmarks: [],
+    railways: [],
+    water: []
+};
+
+/* =========================
+   CAMERA
+========================= */
+
+const CAMERA = {
+    x: 0,
+    y: 0,
+    zoom: 1,
+    targetZoom: 1
+};
+
+/* =========================
+   PLAYER WORLD POSITION
+========================= */
+
+const PLAYER = {
+    x: 3000,
+    y: 3000,
+    angle: 0,
+    speed: 0,
+    radius: 12
+};
+
+/* =========================
+   DISTRICTS
+========================= */
+
+CITY.districts = [
+    {
+        name: "HILLVIEW",
+        x: 100,
+        y: 100,
+        w: 1500,
+        h: 1100,
+        color: "#303d35"
+    },
+    {
+        name: "AIRPORT DISTRICT",
+        x: 3900,
+        y: 100,
+        w: 1900,
+        h: 1300,
+        color: "#303a40"
+    },
+    {
+        name: "OLD QUARTER",
+        x: 100,
+        y: 1600,
+        w: 1600,
+        h: 1400,
+        color: "#39312b"
+    },
+    {
+        name: "DOWNTOWN",
+        x: 1900,
+        y: 1500,
+        w: 1800,
+        h: 1600,
+        color: "#37383c"
+    },
+    {
+        name: "CENTRAL MARKET",
+        x: 100,
+        y: 3300,
+        w: 1500,
+        h: 1200,
+        color: "#41382e"
+    },
+    {
+        name: "RIVERSIDE",
+        x: 1700,
+        y: 3400,
+        w: 1800,
+        h: 1500,
+        color: "#303c3b"
+    },
+    {
+        name: "INDUSTRIAL DISTRICT",
+        x: 3900,
+        y: 3300,
+        w: 1900,
+        h: 1500,
+        color: "#3b3735"
+    },
+    {
+        name: "TEA COUNTY",
+        x: 100,
+        y: 4700,
+        w: 1800,
+        h: 1200,
+        color: "#344438"
+    },
+    {
+        name: "DISPUR HEIGHTS",
+        x: 3900,
+        y: 4700,
+        w: 1900,
+        h: 1200,
+        color: "#343b37"
+    }
+];
+
+/* =========================
+   RIVER
+========================= */
+
+CITY.water.push({
+    points: [
+        { x: 1500, y: -300 },
+        { x: 1750, y: 600 },
+        { x: 2100, y: 1200 },
+        { x: 2450, y: 1900 },
+        { x: 2700, y: 2700 },
+        { x: 2500, y: 3400 },
+        { x: 2200, y: 4100 },
+        { x: 2450, y: 5000 },
+        { x: 3000, y: 6300 }
+    ],
+    width: 520
+});
+
+/* =========================
+   ROAD GENERATION
+========================= */
+
+function addRoad(x1, y1, x2, y2, width = 100, type = "street") {
+    CITY.roads.push({
+        x1, y1, x2, y2,
+        width,
+        type
+    });
+}
+
+/* MAIN HIGHWAYS */
+
+addRoad(0, 1350, 6000, 1350, 150, "highway");
+addRoad(0, 3100, 6000, 3100, 140, "highway");
+addRoad(3000, 0, 3000, 6000, 145, "highway");
+addRoad(3800, 0, 3800, 6000, 120, "highway");
+
+/* DOWNTOWN ROADS */
+
+addRoad(1900, 1750, 3700, 1750, 80);
+addRoad(1900, 2150, 3700, 2150, 75);
+addRoad(1900, 2550, 3700, 2550, 75);
+addRoad(1900, 2900, 3700, 2900, 80);
+
+addRoad(2200, 1500, 2200, 3100, 75);
+addRoad(2600, 1500, 2600, 3100, 75);
+addRoad(3400, 1500, 3400, 3100, 75);
+
+/* OLD QUARTER ROADS */
+
+addRoad(250, 1750, 1550, 1750, 65);
+addRoad(250, 2200, 1550, 2200, 65);
+addRoad(250, 2650, 1550, 2650, 65);
+
+addRoad(500, 1600, 500, 3000, 65);
+addRoad(1000, 1600, 1000, 3000, 65);
+addRoad(1450, 1600, 1450, 3000, 65);
+
+/* MARKET ROADS */
+
+addRoad(200, 3500, 1500, 3500, 70);
+addRoad(200, 3900, 1500, 3900, 70);
+addRoad(200, 4300, 1500, 4300, 70);
+
+addRoad(450, 3300, 450, 4550, 65);
+addRoad(900, 3300, 900, 4550, 65);
+addRoad(1300, 3300, 1300, 4550, 65);
+
+/* INDUSTRIAL ROADS */
+
+addRoad(4000, 3500, 5800, 3500, 90);
+addRoad(4000, 4100, 5800, 4100, 85);
+addRoad(4000, 4700, 5800, 4700, 85);
+
+addRoad(4300, 3300, 4300, 5900, 75);
+addRoad(5000, 3300, 5000, 5900, 75);
+addRoad(5600, 3300, 5600, 5900, 75);
+
+/* SOUTHERN CITY ROADS */
+
+addRoad(200, 5100, 3700, 5100, 75);
+addRoad(200, 5550, 3700, 5550, 75);
+
+addRoad(800, 4700, 800, 5900, 70);
+addRoad(1500, 4700, 1500, 5900, 70);
+addRoad(2300, 4700, 2300, 5900, 70);
+
+/* AIRPORT ACCESS */
+
+addRoad(3900, 600, 5900, 600, 100, "highway");
+addRoad(3900, 1100, 5900, 1100, 80);
+addRoad(4500, 200, 4500, 1400, 80);
+addRoad(5200, 200, 5200, 1400, 80);
+
+/* =========================
+   BRIDGES
+========================= */
+
+CITY.bridges.push(
+    {
+        x: 1750,
+        y: 1150,
+        w: 700,
+        h: 180,
+        angle: 0
+    },
+    {
+        x: 2200,
+        y: 3100,
+        w: 600,
+        h: 180,
+        angle: 0
+    },
+    {
+        x: 2450,
+        y: 3950,
+        w: 700,
+        h: 180,
+        angle: 0
+    }
+);
+
+/* =========================
+   PARKS
+========================= */
+
+CITY.parks.push(
+    { x: 400, y: 400, w: 600, h: 500 },
+    { x: 1100, y: 500, w: 400, h: 350 },
+    { x: 400, y: 2900, w: 500, h: 300 },
+    { x: 1800, y: 4300, w: 600, h: 500 },
+    { x: 3100, y: 4300, w: 400, h: 500 },
+    { x: 4000, y: 5000, w: 650, h: 400 },
+    { x: 900, y: 5000, w: 500, h: 350 }
+);
+
+/* =========================
+   TREES
+   Generated once
+========================= */
+
+function generateTrees() {
+    CITY.trees.length = 0;
+
+    for (const park of CITY.parks) {
+        const count = Math.floor((park.w * park.h) / 18000);
+
+        for (let i = 0; i < count; i++) {
+            CITY.trees.push({
+                x: park.x + Math.random() * park.w,
+                y: park.y + Math.random() * park.h,
+                size: 12 + Math.random() * 14
+            });
+        }
+    }
+}
+
+generateTrees();
+
+/* =========================
+   BUILDINGS
+========================= */
+
+function addBuilding(x, y, w, h, type = "residential") {
+    CITY.buildings.push({
+        x, y, w, h,
+        type,
+        shade: Math.random()
+    });
+}
+
+/* =========================
+   RESIDENTIAL BLOCKS
+========================= */
+
+function generateResidential(x, y, w, h) {
+    const gap = 45;
+    const blockW = 130;
+    const blockH = 110;
+
+    for (let bx = x; bx < x + w - blockW; bx += blockW + gap) {
+        for (let by = y; by < y + h - blockH; by += blockH + gap) {
+            addBuilding(
+                bx + Math.random() * 12,
+                by + Math.random() * 12,
+                blockW - Math.random() * 20,
+                blockH - Math.random() * 20,
+                "residential"
+            );
+        }
+    }
+}
+
+/* =========================
+   COMMERCIAL BLOCKS
+========================= */
+
+function generateCommercial(x, y, w, h) {
+    const gap = 35;
+    const blockW = 170;
+    const blockH = 140;
+
+    for (let bx = x; bx < x + w - blockW; bx += blockW + gap) {
+        for (let by = y; by < y + h - blockH; by += blockH + gap) {
+            addBuilding(
+                bx,
+                by,
+                blockW - Math.random() * 30,
+                blockH - Math.random() * 25,
+                "commercial"
+            );
+        }
+    }
+}
+
+/* =========================
+   INDUSTRIAL BLOCKS
+========================= */
+
+function generateIndustrial(x, y, w, h) {
+    const gap = 65;
+    const blockW = 240;
+    const blockH = 190;
+
+    for (let bx = x; bx < x + w - blockW; bx += blockW + gap) {
+        for (let by = y; by < y + h - blockH; by += blockH + gap) {
+            addBuilding(
+                bx,
+                by,
+                blockW + Math.random() * 35,
+                blockH + Math.random() * 25,
+                "industrial"
+            );
+        }
+    }
+}
+
+/* =========================
+   CITY BUILDING GENERATION
+========================= */
+
+generateResidential(200, 200, 1400, 1100);
+generateResidential(200, 1800, 1400, 1100);
+generateCommercial(2000, 1800, 1600, 1000);
+generateCommercial(200, 3400, 1300, 1000);
+generateResidential(1800, 3500, 1500, 1200);
+generateIndustrial(4000, 3500, 1800, 2000);
+generateResidential(4000, 4800, 1700, 900);
+
+/* =========================
+   AIRPORT
+========================= */
+
+const AIRPORT = {
+    x: 4050,
+    y: 150,
+    w: 1750,
+    h: 1200,
+
+    runway: {
+        x: 4350,
+        y: 250,
+        w: 1150,
+        h: 190
+    },
+
+    terminal: {
+        x: 4750,
+        y: 650,
+        w: 700,
+        h: 260
+    }
+};
+
+/* =========================
+   RAILWAY
+========================= */
+
+CITY.railways.push(
+    {
+        points: [
+            { x: -200, y: 4600 },
+            { x: 1200, y: 4600 },
+            { x: 2200, y: 4500 },
+            { x: 3500, y: 4600 },
+            { x: 4600, y: 4800 },
+            { x: 6200, y: 4800 }
+        ]
+    }
+);
+
+/* =========================
+   LANDMARKS
+========================= */
+
+CITY.landmarks.push(
+    { name: "CITY HOSPITAL", x: 2500, y: 1900, type: "hospital" },
+    { name: "POLICE STATION", x: 3200, y: 2300, type: "police" },
+    { name: "CENTRAL MALL", x: 3000, y: 1750, type: "mall" },
+    { name: "RAILWAY STATION", x: 1900, y: 4500, type: "station" },
+    { name: "BUS TERMINAL", x: 1000, y: 3900, type: "bus" },
+    { name: "FUEL STATION", x: 4200, y: 3600, type: "fuel" },
+    { name: "CITY STADIUM", x: 3300, y: 4000, type: "stadium" },
+    { name: "CITY UNIVERSITY", x: 4500, y: 5200, type: "university" },
+    { name: "RIVERSIDE PARK", x: 2000, y: 4200, type: "park" },
+    { name: "INDUSTRIAL HUB", x: 5200, y: 4100, type: "factory" },
+    { name: "TEA ESTATE", x: 800, y: 5200, type: "tea" },
+    { name: "FIRE STATION", x: 3500, y: 2600, type: "fire" }
+);
+
+/* =========================================================
+   RENDER ENGINE
+   ========================================================= */
+
+/* =========================
+   DISTRICTS
+========================= */
+
+function drawDistricts(ctx) {
+    for (const d of CITY.districts) {
+        ctx.fillStyle = d.color;
+        ctx.fillRect(d.x, d.y, d.w, d.h);
+    }
+}
+
+/* =========================
+   PARKS
+========================= */
+
+function drawParks(ctx) {
+    for (const p of CITY.parks) {
+        ctx.fillStyle = "#294b34";
+        ctx.fillRect(p.x, p.y, p.w, p.h);
+
+        ctx.strokeStyle = "#395b40";
+        ctx.lineWidth = 8;
+        ctx.strokeRect(p.x, p.y, p.w, p.h);
+    }
+}
+
+/* =========================
+   RIVER
+========================= */
+
+function drawRiver(ctx) {
+    for (const river of CITY.water) {
+        if (!river.points || river.points.length < 2) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(river.points[0].x, river.points[0].y);
+
+        for (let i = 1; i < river.points.length; i++) {
+            ctx.lineTo(river.points[i].x, river.points[i].y);
+        }
+
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.lineWidth = river.width;
+        ctx.strokeStyle = "#263e50";
+        ctx.stroke();
+
+        ctx.lineWidth = river.width * 0.88;
+        ctx.strokeStyle = "#315b75";
+        ctx.stroke();
+
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "rgba(125,180,200,0.12)";
+        ctx.stroke();
+    }
+}
+
+/* =========================
+   ROADS
+========================= */
+
+function drawRoads(ctx) {
+    for (const r of CITY.roads) {
+        ctx.beginPath();
+        ctx.moveTo(r.x1, r.y1);
+        ctx.lineTo(r.x2, r.y2);
+
+        ctx.lineCap = "butt";
+        ctx.lineWidth = r.width;
+        ctx.strokeStyle = r.type === "highway"
+            ? "#25282c"
+            : "#282a2d";
+
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(r.x1, r.y1);
+        ctx.lineTo(r.x2, r.y2);
+
+        ctx.lineWidth = Math.max(2, r.width * 0.025);
+        ctx.strokeStyle = "#414448";
+        ctx.stroke();
+    }
+}
+
+/* =========================
+   BRIDGES
+========================= */
+
+function drawBridges(ctx) {
+    for (const b of CITY.bridges) {
+        ctx.save();
+
+        ctx.translate(b.x + b.w / 2, b.y + b.h / 2);
+        ctx.rotate(b.angle || 0);
+
+        ctx.fillStyle = "#494b4d";
+        ctx.fillRect(-b.w / 2, -b.h / 2, b.w, b.h);
+
+        ctx.fillStyle = "#26292c";
+        ctx.fillRect(-b.w / 2, -b.h / 2 + 15, b.w, b.h - 30);
+
+        ctx.strokeStyle = "#74787a";
+        ctx.lineWidth = 5;
+
+        ctx.beginPath();
+        ctx.moveTo(-b.w / 2, -b.h / 2 + 10);
+        ctx.lineTo(b.w / 2, -b.h / 2 + 10);
+        ctx.moveTo(-b.w / 2, b.h / 2 - 10);
+        ctx.lineTo(b.w / 2, b.h / 2 - 10);
+        ctx.stroke();
+
+        ctx.restore();
+    }
+}
+
+/* =========================
+   BUILDINGS
+========================= */
+
+function drawBuildings(ctx) {
+    for (const b of CITY.buildings) {
+        let baseColor;
+
+        if (b.type === "residential") {
+            baseColor = "#55504a";
+        } else if (b.type === "commercial") {
+            baseColor = "#62615b";
+        } else {
+            baseColor = "#4b4e50";
+        }
+
+        ctx.fillStyle = baseColor;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+
+        ctx.fillStyle = "rgba(0,0,0,0.15)";
+        ctx.fillRect(b.x + b.w * 0.7, b.y, b.w * 0.3, b.h);
+
+        ctx.strokeStyle = "#22272a";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+
+        /* Roof detail */
+
+        ctx.fillStyle = "rgba(180,180,180,0.05)";
+        ctx.fillRect(
+            b.x + 10,
+            b.y + 10,
+            Math.max(0, b.w - 20),
+            Math.max(0, b.h - 20)
+        );
+    }
+}
+
+/* =========================
+   TREES
+========================= */
+
+function drawTrees(ctx) {
+    for (const t of CITY.trees) {
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+
+        ctx.fillStyle = "#23442e";
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(
+            t.x - t.size * 0.2,
+            t.y - t.size * 0.2,
+            t.size * 0.65,
+            0,
+            Math.PI * 2
+        );
+
+        ctx.fillStyle = "#355e3b";
+        ctx.fill();
+    }
+}
+
+/* =========================
+   RAILWAY
+========================= */
+
+function drawRailways(ctx) {
+    for (const rail of CITY.railways) {
+        if (!rail.points || rail.points.length < 2) continue;
+
+        ctx.beginPath();
+        ctx.moveTo(rail.points[0].x, rail.points[0].y);
+
+        for (let i = 1; i < rail.points.length; i++) {
+            ctx.lineTo(rail.points[i].x, rail.points[i].y);
+        }
+
+        ctx.lineWidth = 45;
+        ctx.strokeStyle = "#252729";
+        ctx.stroke();
+
+        ctx.lineWidth = 5;
+        ctx.strokeStyle = "#90908b";
+        ctx.stroke();
+
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = "#55585a";
+
+        ctx.setLineDash([30, 25]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+}
+
+/* =========================
+   AIRPORT
+========================= */
+
+function drawAirport(ctx) {
+    ctx.fillStyle = "#343b40";
+    ctx.fillRect(AIRPORT.x, AIRPORT.y, AIRPORT.w, AIRPORT.h);
+
+    /* Runway */
+
+    ctx.fillStyle = "#15191d";
+    ctx.fillRect(
+        AIRPORT.runway.x,
+        AIRPORT.runway.y,
+        AIRPORT.runway.w,
+        AIRPORT.runway.h
+    );
+
+    /* Runway outline */
+
+    ctx.strokeStyle = "#74787b";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(
+        AIRPORT.runway.x,
+        AIRPORT.runway.y,
+        AIRPORT.runway.w,
+        AIRPORT.runway.h
+    );
+
+    /* Runway center markings */
+
+    ctx.strokeStyle = "#c6c7c5";
+    ctx.lineWidth = 8;
+    ctx.setLineDash([45, 35]);
+
+    ctx.beginPath();
+    ctx.moveTo(
+        AIRPORT.runway.x + 50,
+        AIRPORT.runway.y + AIRPORT.runway.h / 2
+    );
+
+    ctx.lineTo(
+        AIRPORT.runway.x + AIRPORT.runway.w - 50,
+        AIRPORT.runway.y + AIRPORT.runway.h / 2
+    );
+
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    /* Terminal */
+
+    ctx.fillStyle = "#666b6c";
+    ctx.fillRect(
+        AIRPORT.terminal.x,
+        AIRPORT.terminal.y,
+        AIRPORT.terminal.w,
+        AIRPORT.terminal.h
+    );
+
+    ctx.fillStyle = "#383f43";
+    ctx.fillRect(
+        AIRPORT.terminal.x + 20,
+        AIRPORT.terminal.y + 20,
+        AIRPORT.terminal.w - 40,
+        AIRPORT.terminal.h - 40
+    );
+
+    ctx.strokeStyle = "#858b8b";
+    ctx.lineWidth = 8;
+    ctx.strokeRect(
+        AIRPORT.terminal.x,
+        AIRPORT.terminal.y,
+        AIRPORT.terminal.w,
+        AIRPORT.terminal.h
+    );
+
+    /* Terminal label */
+
+    ctx.fillStyle = "#d0d1ce";
+    ctx.font = "bold 60px Arial";
+    ctx.textAlign = "center";
+
+    ctx.fillText(
+        "AIRPORT",
+        AIRPORT.terminal.x + AIRPORT.terminal.w / 2,
+        AIRPORT.terminal.y + AIRPORT.terminal.h / 2
+    );
+
+    ctx.textAlign = "left";
+}
+
+/* =========================
+   LANDMARKS
+========================= */
+
+function drawLandmarks(ctx) {
+    for (const l of CITY.landmarks) {
+        let color = "#b9b5a6";
+
+        switch (l.type) {
+            case "hospital":
+                color = "#a7b9bc";
+                break;
+            case "police":
+                color = "#879eb5";
+                break;
+            case "mall":
+                color = "#b8a88d";
+                break;
+            case "station":
+                color = "#b6a58b";
+                break;
+            case "bus":
+                color = "#a5a18e";
+                break;
+            case "fuel":
+                color = "#b5a179";
+                break;
+            case "stadium":
+                color = "#81958a";
+                break;
+            case "university":
+                color = "#9eaa9c";
+                break;
+            case "park":
+                color = "#719076";
+                break;
+            case "factory":
+                color = "#92918b";
+                break;
+            case "tea":
+                color = "#829879";
+                break;
+            case "fire":
+                color = "#b18b76";
+                break;
+        }
+
+        const size = 180;
+
+        ctx.fillStyle = color;
+        ctx.fillRect(
+            l.x - size / 2,
+            l.y - size / 2,
+            size,
+            size
+        );
+
+        ctx.strokeStyle = "#22282b";
+        ctx.lineWidth = 8;
+        ctx.strokeRect(
+            l.x - size / 2,
+            l.y - size / 2,
+            size,
+            size
+        );
+
+        ctx.fillStyle = "#e2e0d8";
+        ctx.font = "bold 34px Arial";
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+            l.name,
+            l.x,
+            l.y + size / 2 + 45
+        );
+
+        ctx.textAlign = "left";
+    }
+}
+
+/* =========================
+   DISTRICT LABELS
+========================= */
+
+function drawDistrictLabels(ctx) {
+    ctx.textAlign = "center";
+    ctx.font = "bold 100px Arial";
+
+    for (const d of CITY.districts) {
+        ctx.fillStyle = "rgba(220,220,215,0.13)";
+
+        ctx.fillText(
+            d.name,
+            d.x + d.w / 2,
+            d.y + d.h / 2
+        );
+    }
+
+    ctx.textAlign = "left";
+}
+
+/* =========================
+   PLAYER MARKER
+========================= */
+
+function drawPlayerMarker(ctx) {
+    ctx.save();
+
+    ctx.translate(PLAYER.x, PLAYER.y);
+    ctx.rotate(PLAYER.angle);
+
+    ctx.fillStyle = "#e6e6df";
+
+    ctx.beginPath();
+    ctx.moveTo(0, -20);
+    ctx.lineTo(12, 14);
+    ctx.lineTo(0, 8);
+    ctx.lineTo(-12, 14);
+    ctx.closePath();
+
+    ctx.fill();
+
+    ctx.restore();
+}
+
+/* =========================
+   CAMERA FOLLOW
+========================= */
+
+function updateCamera() {
+    const viewW = canvas.width;
+    const viewH = canvas.height;
+
+    const targetX = PLAYER.x - viewW / (2 * CAMERA.zoom);
+    const targetY = PLAYER.y - viewH / (2 * CAMERA.zoom);
+
+    CAMERA.x += (targetX - CAMERA.x) * 0.08;
+    CAMERA.y += (targetY - CAMERA.y) * 0.08;
+
+    const maxX = Math.max(0, CITY.width - viewW / CAMERA.zoom);
+    const maxY = Math.max(0, CITY.height - viewH / CAMERA.zoom);
+
+    CAMERA.x = Math.max(0, Math.min(CAMERA.x, maxX));
+    CAMERA.y = Math.max(0, Math.min(CAMERA.y, maxY));
+}
+
+/* =========================
+   GAME HUD
+========================= */
+
+function drawCityHUD(ctx) {
+    ctx.save();
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+    ctx.fillStyle = "rgba(12,15,18,0.75)";
+    ctx.fillRect(25, 25, 360, 100);
+
+    ctx.fillStyle = "#eeeeea";
+    ctx.font = "bold 26px Arial";
+    ctx.textAlign = "left";
+
+    ctx.fillText("LUIT CITY", 45, 65);
+
+    ctx.fillStyle = "#9da3a5";
+    ctx.font = "18px Arial";
+    ctx.fillText("THE CITY KNOWS NO MERCY", 45, 100);
+
+    ctx.restore();
+}
+
+/* =========================
+   WORLD RENDERER
+========================= */
+
+function renderGame() {
+    const ctx = canvas.getContext("2d");
+
+    updateCamera();
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+
+    ctx.scale(CAMERA.zoom, CAMERA.zoom);
+    ctx.translate(-CAMERA.x, -CAMERA.y);
+
+    /* Base world */
+
+    ctx.fillStyle = "#303832";
+    ctx.fillRect(0, 0, CITY.width, CITY.height);
+
+    /* Render layers */
+
+    drawDistricts(ctx);
+    drawParks(ctx);
+    drawRiver(ctx);
+    drawRoads(ctx);
+    drawBridges(ctx);
+    drawRailways(ctx);
+    drawBuildings(ctx);
+    drawAirport(ctx);
+    drawTrees(ctx);
+    drawLandmarks(ctx);
+    drawDistrictLabels(ctx);
+    drawPlayerMarker(ctx);
+
+    ctx.restore();
+
+    drawCityHUD(ctx);
+}
+
+/* =========================================================
+   END OF PART 2
+   ========================================================= */
+
