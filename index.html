@@ -2076,3 +2076,1516 @@ function renderGame() {
    END OF PART 2
    ========================================================= */
 
+/* ==========================================
+   LUIT CITY — PART 3
+   PLAYER CONTROLLER
+   TRENDIX STUDIOS
+========================================== */
+
+/* ---------- PLAYER SETTINGS ---------- */
+
+const LC3 = {
+    walkSpeed: 230,
+    sprintSpeed: 350,
+    acceleration: 1050,
+    friction: 1400,
+    turnSpeed: 10,
+    radius: 14
+};
+
+/* ---------- INPUT STATE ---------- */
+
+const LC3_INPUT = {
+    up: false,
+    down: false,
+    left: false,
+    right: false,
+    sprint: false,
+
+    joystickActive: false,
+    joyX: 0,
+    joyY: 0
+};
+
+let LC3_ACTIVE = false;
+
+/* ---------- PLAYER INITIALIZATION ---------- */
+
+PLAYER.vx = 0;
+PLAYER.vy = 0;
+PLAYER.walking = false;
+PLAYER.sprinting = false;
+
+/* ---------- KEYBOARD ---------- */
+
+window.addEventListener("keydown", e => {
+
+    const key = e.key.toLowerCase();
+
+    if (
+        ["arrowup", "arrowdown", "arrowleft", "arrowright", " "]
+        .includes(key)
+    ) {
+        e.preventDefault();
+    }
+
+    if (key === "w" || key === "arrowup")
+        LC3_INPUT.up = true;
+
+    if (key === "s" || key === "arrowdown")
+        LC3_INPUT.down = true;
+
+    if (key === "a" || key === "arrowleft")
+        LC3_INPUT.left = true;
+
+    if (key === "d" || key === "arrowright")
+        LC3_INPUT.right = true;
+
+    if (key === "shift")
+        LC3_INPUT.sprint = true;
+
+}, { passive: false });
+
+window.addEventListener("keyup", e => {
+
+    const key = e.key.toLowerCase();
+
+    if (key === "w" || key === "arrowup")
+        LC3_INPUT.up = false;
+
+    if (key === "s" || key === "arrowdown")
+        LC3_INPUT.down = false;
+
+    if (key === "a" || key === "arrowleft")
+        LC3_INPUT.left = false;
+
+    if (key === "d" || key === "arrowright")
+        LC3_INPUT.right = false;
+
+    if (key === "shift")
+        LC3_INPUT.sprint = false;
+
+});
+
+window.addEventListener("blur", () => {
+
+    LC3_INPUT.up = false;
+    LC3_INPUT.down = false;
+    LC3_INPUT.left = false;
+    LC3_INPUT.right = false;
+    LC3_INPUT.sprint = false;
+
+});
+
+/* ---------- MOBILE UI ---------- */
+
+const LC3_STYLE = document.createElement("style");
+
+LC3_STYLE.textContent = `
+#lc3_controls {
+    position:fixed;
+    inset:0;
+    z-index:50;
+    pointer-events:none;
+    display:none;
+    font-family:Arial,sans-serif;
+}
+
+#lc3_joy {
+    position:absolute;
+    left:24px;
+    bottom:24px;
+    width:132px;
+    height:132px;
+    border-radius:50%;
+    background:rgba(15,20,26,.48);
+    border:1px solid rgba(220,230,240,.24);
+    pointer-events:auto;
+    touch-action:none;
+}
+
+#lc3_knob {
+    position:absolute;
+    width:54px;
+    height:54px;
+    left:39px;
+    top:39px;
+    border-radius:50%;
+    background:rgba(215,225,235,.78);
+    box-shadow:0 0 20px rgba(180,200,220,.10);
+    pointer-events:none;
+}
+
+#lc3_sprint {
+    position:absolute;
+    right:28px;
+    bottom:36px;
+    width:100px;
+    height:100px;
+    border-radius:50%;
+    background:rgba(15,20,26,.48);
+    border:1px solid rgba(220,230,240,.25);
+    color:#e6edf3;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    font-size:11px;
+    letter-spacing:2px;
+    pointer-events:auto;
+    touch-action:none;
+}
+
+#lc3_sprint.active {
+    background:rgba(190,205,220,.28);
+    border-color:#b9c7d4;
+}
+
+@media (max-width:700px) {
+    #lc3_joy {
+        width:120px;
+        height:120px;
+    }
+
+    #lc3_knob {
+        width:50px;
+        height:50px;
+        left:35px;
+        top:35px;
+    }
+
+    #lc3_sprint {
+        width:84px;
+        height:84px;
+        right:22px;
+        bottom:28px;
+    }
+}
+`;
+
+document.head.appendChild(LC3_STYLE);
+
+/* ---------- CREATE CONTROLS ---------- */
+
+const LC3_CONTROLS = document.createElement("div");
+LC3_CONTROLS.id = "lc3_controls";
+
+LC3_CONTROLS.innerHTML = `
+    <div id="lc3_joy">
+        <div id="lc3_knob"></div>
+    </div>
+    <div id="lc3_sprint">SPRINT</div>
+`;
+
+document.body.appendChild(LC3_CONTROLS);
+
+const LC3_JOY = document.getElementById("lc3_joy");
+const LC3_KNOB = document.getElementById("lc3_knob");
+const LC3_SPRINT = document.getElementById("lc3_sprint");
+
+/* ---------- JOYSTICK ---------- */
+
+let LC3_POINTER = null;
+
+function LC3_resetJoystick() {
+
+    LC3_INPUT.joystickActive = false;
+    LC3_INPUT.joyX = 0;
+    LC3_INPUT.joyY = 0;
+
+    LC3_KNOB.style.transform = "translate(0px,0px)";
+}
+
+function LC3_moveJoystick(e) {
+
+    const rect = LC3_JOY.getBoundingClientRect();
+
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    let dx = e.clientX - cx;
+    let dy = e.clientY - cy;
+
+    const max = rect.width * 0.32;
+    const distance = Math.hypot(dx, dy);
+
+    if (distance > max) {
+
+        dx = dx / distance * max;
+        dy = dy / distance * max;
+
+    }
+
+    LC3_INPUT.joyX = dx / max;
+    LC3_INPUT.joyY = dy / max;
+
+    LC3_INPUT.joystickActive =
+        Math.hypot(LC3_INPUT.joyX, LC3_INPUT.joyY) > 0.12;
+
+    LC3_KNOB.style.transform =
+        `translate(${dx}px,${dy}px)`;
+}
+
+LC3_JOY.addEventListener("pointerdown", e => {
+
+    if (!LC3_ACTIVE) return;
+
+    e.preventDefault();
+
+    LC3_POINTER = e.pointerId;
+
+    LC3_JOY.setPointerCapture(e.pointerId);
+
+    LC3_moveJoystick(e);
+
+});
+
+LC3_JOY.addEventListener("pointermove", e => {
+
+    if (e.pointerId !== LC3_POINTER) return;
+
+    LC3_moveJoystick(e);
+
+});
+
+function LC3_endJoystick(e) {
+
+    if (e.pointerId !== LC3_POINTER) return;
+
+    LC3_POINTER = null;
+    LC3_resetJoystick();
+
+}
+
+LC3_JOY.addEventListener("pointerup", LC3_endJoystick);
+LC3_JOY.addEventListener("pointercancel", LC3_endJoystick);
+
+/* ---------- SPRINT BUTTON ---------- */
+
+LC3_SPRINT.addEventListener("pointerdown", e => {
+
+    if (!LC3_ACTIVE) return;
+
+    e.preventDefault();
+
+    LC3_INPUT.sprint = true;
+    LC3_SPRINT.classList.add("active");
+
+});
+
+function LC3_endSprint() {
+
+    LC3_INPUT.sprint = false;
+    LC3_SPRINT.classList.remove("active");
+
+}
+
+LC3_SPRINT.addEventListener("pointerup", LC3_endSprint);
+LC3_SPRINT.addEventListener("pointercancel", LC3_endSprint);
+LC3_SPRINT.addEventListener("lostpointercapture", LC3_endSprint);
+
+/* ---------- CONTROL VISIBILITY ---------- */
+
+function LC3_setActive(state) {
+
+    LC3_ACTIVE = state;
+
+    LC3_CONTROLS.style.display = state ? "block" : "none";
+
+    if (!state) {
+
+        LC3_INPUT.up = false;
+        LC3_INPUT.down = false;
+        LC3_INPUT.left = false;
+        LC3_INPUT.right = false;
+        LC3_INPUT.sprint = false;
+
+        LC3_resetJoystick();
+        LC3_endSprint();
+
+        PLAYER.vx = 0;
+        PLAYER.vy = 0;
+        PLAYER.speed = 0;
+
+    }
+
+}
+
+/* ---------- COLLISION ---------- */
+
+function LC3_circleRect(cx, cy, radius, b) {
+
+    const nearestX = clamp(cx, b.x, b.x + b.w);
+    const nearestY = clamp(cy, b.y, b.y + b.h);
+
+    const dx = cx - nearestX;
+    const dy = cy - nearestY;
+
+    return dx * dx + dy * dy < radius * radius;
+
+}
+
+function LC3_collides(x, y) {
+
+    const r = PLAYER.radius;
+
+    for (const b of CITY.buildings) {
+
+        if (
+            x + r < b.x ||
+            x - r > b.x + b.w ||
+            y + r < b.y ||
+            y - r > b.y + b.h
+        ) continue;
+
+        if (LC3_circleRect(x, y, r, b))
+            return true;
+
+    }
+
+    return false;
+
+}
+
+/* ---------- MOVEMENT INPUT ---------- */
+
+function LC3_getInput() {
+
+    let x = 0;
+    let y = 0;
+
+    if (LC3_INPUT.left) x -= 1;
+    if (LC3_INPUT.right) x += 1;
+    if (LC3_INPUT.up) y -= 1;
+    if (LC3_INPUT.down) y += 1;
+
+    if (LC3_INPUT.joystickActive) {
+
+        x = LC3_INPUT.joyX;
+        y = LC3_INPUT.joyY;
+
+    }
+
+    const magnitude = Math.hypot(x, y);
+
+    if (magnitude > 1) {
+
+        x /= magnitude;
+        y /= magnitude;
+
+    }
+
+    return { x, y };
+
+}
+
+/* ---------- PLAYER UPDATE ---------- */
+
+function LC3_updatePlayer(dt) {
+
+    if (!LC3_ACTIVE || ENGINE.screen !== "game")
+        return;
+
+    const input = LC3_getInput();
+
+    const moving = Math.hypot(input.x, input.y) > 0.08;
+
+    const sprinting = moving && LC3_INPUT.sprint;
+
+    const maxSpeed = sprinting
+        ? LC3.walkSpeed * (LC3.sprintSpeed / LC3.walkSpeed)
+        : LC3.walkSpeed;
+
+    const targetVX = input.x * maxSpeed;
+    const targetVY = input.y * maxSpeed;
+
+    const accel = moving
+        ? LC3.acceleration
+        : LC3.friction;
+
+    PLAYER.vx = lerp(
+        PLAYER.vx,
+        targetVX,
+        Math.min(1, accel * dt / maxSpeed)
+    );
+
+    PLAYER.vy = lerp(
+        PLAYER.vy,
+        targetVY,
+        Math.min(1, accel * dt / maxSpeed)
+    );
+
+    /* ---------- X COLLISION ---------- */
+
+    let nextX = PLAYER.x + PLAYER.vx * dt;
+
+    nextX = clamp(
+        nextX,
+        PLAYER.radius,
+        CITY.width - PLAYER.radius
+    );
+
+    if (!LC3_collides(nextX, PLAYER.y)) {
+
+        PLAYER.x = nextX;
+
+    } else {
+
+        PLAYER.vx = 0;
+
+    }
+
+    /* ---------- Y COLLISION ---------- */
+
+    let nextY = PLAYER.y + PLAYER.vy * dt;
+
+    nextY = clamp(
+        nextY,
+        PLAYER.radius,
+        CITY.height - PLAYER.radius
+    );
+
+    if (!LC3_collides(PLAYER.x, nextY)) {
+
+        PLAYER.y = nextY;
+
+    } else {
+
+        PLAYER.vy = 0;
+
+    }
+
+    /* ---------- ROTATION ---------- */
+
+    if (moving) {
+
+        const targetAngle = Math.atan2(input.y, input.x);
+
+        let diff = targetAngle - PLAYER.angle;
+
+        while (diff > Math.PI) diff -= Math.PI * 2;
+        while (diff < -Math.PI) diff += Math.PI * 2;
+
+        PLAYER.angle += diff * Math.min(1, LC3.turnSpeed * dt);
+
+    }
+
+    PLAYER.speed = Math.hypot(PLAYER.vx, PLAYER.vy);
+
+    PLAYER.walking = moving && PLAYER.speed > 8;
+    PLAYER.sprinting = sprinting && PLAYER.speed > 8;
+
+}
+
+/* ---------- GAME LOOP INTEGRATION ---------- */
+
+/* Original Part 1 update function ko safely wrap karta hai. */
+
+const LC3_originalUpdate = update;
+
+update = function(dt) {
+
+    LC3_originalUpdate(dt);
+
+    LC3_updatePlayer(dt);
+
+};
+
+/* ---------- GAME RENDER INTEGRATION ---------- */
+
+/* Part 2 renderer ko gameplay ke waqt use karta hai. */
+
+const LC3_originalRenderGame = renderGame;
+
+renderGame = function() {
+
+    if (ENGINE.screen !== "game") {
+
+        LC3_setActive(false);
+
+        LC3_originalRenderGame();
+
+        return;
+
+    }
+
+    LC3_setActive(true);
+
+    BUTTONS.length = 0;
+
+    renderCityWorld();
+    drawHUD();
+
+};
+
+/* ---------- MENU COMPATIBILITY ---------- */
+
+const LC3_originalHandleButton = handleButton;
+
+handleButton = function(label) {
+
+    if (label === "NEW GAME") {
+
+        LC3_setActive(true);
+
+    }
+
+    if (
+        label === "RETURN TO MENU" ||
+        label === "BACK"
+    ) {
+
+        LC3_setActive(false);
+
+  
+
+    LC3_originalHandleButton(label);
+
+};
+
+/* ---------- INITIAL STATE ---------- */
+
+LC3_setActive(false);
+
+/* ==========================================
+   PART 3 END
+========================================== */
+     /* ==========================================
+   LUIT CITY — PART 4
+   VEHICLE SYSTEM
+   TRENDIX STUDIOS
+========================================== */
+
+/* ---------- VEHICLE CONFIG ---------- */
+
+const LC4 = {
+    maxSpeed: 430,
+    reverseSpeed: 150,
+    acceleration: 260,
+    braking: 420,
+    friction: 100,
+    steering: 2.15,
+    collisionRadius: 20
+};
+
+const LC4_VEHICLES = [];
+let LC4_CURRENT = null;
+
+/* ---------- VEHICLE FACTORY ---------- */
+
+function LC4_createVehicle(x, y, angle, color, name) {
+
+    return {
+        x,
+        y,
+        angle,
+        color,
+        name,
+
+        speed: 0,
+
+        width: 42,
+        height: 22,
+
+        occupied: false,
+
+        engine: false
+    };
+
+}
+
+/* ---------- PARKED VEHICLES ---------- */
+
+LC4_VEHICLES.push(
+    LC4_createVehicle(3150, 3450, 0, "#687987", "SEDAN"),
+    LC4_createVehicle(3250, 3450, 0, "#9b7555", "COUPE"),
+    LC4_createVehicle(3350, 3450, 0, "#687b65", "SUV"),
+    LC4_createVehicle(3450, 3450, 0, "#77717f", "SPORT"),
+    LC4_createVehicle(3550, 3450, 0, "#a5a7a8", "HATCHBACK")
+);
+
+/* ---------- VEHICLE INPUT ---------- */
+
+let LC4_INTERACT = false;
+
+window.addEventListener("keydown", e => {
+
+    if (e.key.toLowerCase() === "e" && !e.repeat) {
+        LC4_INTERACT = true;
+    }
+
+});
+
+/* ---------- NEAREST VEHICLE ---------- */
+
+function LC4_nearestVehicle() {
+
+    let nearest = null;
+    let bestDistance = 85;
+
+    for (const v of LC4_VEHICLES) {
+
+        if (v.occupied) continue;
+
+        const distance = Math.hypot(
+            PLAYER.x - v.x,
+            PLAYER.y - v.y
+        );
+
+        if (distance < bestDistance) {
+
+            bestDistance = distance;
+            nearest = v;
+
+        }
+
+    }
+
+    return nearest;
+
+}
+
+/* ---------- ENTER VEHICLE ---------- */
+
+function LC4_enterVehicle(v) {
+
+    if (!v || LC4_CURRENT) return;
+
+    LC4_CURRENT = v;
+
+    v.occupied = true;
+    v.engine = true;
+
+    v.speed = 0;
+
+    PLAYER.x = v.x;
+    PLAYER.y = v.y;
+    PLAYER.angle = v.angle;
+
+    PLAYER.vx = 0;
+    PLAYER.vy = 0;
+    PLAYER.speed = 0;
+
+}
+
+/* ---------- EXIT VEHICLE ---------- */
+
+function LC4_exitVehicle() {
+
+    if (!LC4_CURRENT) return;
+
+    const v = LC4_CURRENT;
+
+    const sideX = Math.cos(v.angle + Math.PI / 2) * 38;
+    const sideY = Math.sin(v.angle + Math.PI / 2) * 38;
+
+    let exitX = v.x + sideX;
+    let exitY = v.y + sideY;
+
+    if (LC3_collides(exitX, exitY)) {
+
+        exitX = v.x - sideX;
+        exitY = v.y - sideY;
+
+    }
+
+    if (LC3_collides(exitX, exitY)) {
+
+        return;
+
+    }
+
+    PLAYER.x = exitX;
+    PLAYER.y = exitY;
+    PLAYER.angle = v.angle;
+
+    PLAYER.vx = 0;
+    PLAYER.vy = 0;
+    PLAYER.speed = 0;
+
+    v.occupied = false;
+    v.engine = false;
+
+    LC4_CURRENT = null;
+
+}
+
+/* ---------- VEHICLE UPDATE ---------- */
+
+function LC4_update(dt) {
+
+    if (ENGINE.screen !== "game") return;
+
+    /* Interaction */
+
+    if (LC4_INTERACT) {
+
+        LC4_INTERACT = false;
+
+        if (LC4_CURRENT) {
+
+            LC4_exitVehicle();
+
+        } else {
+
+            const nearby = LC4_nearestVehicle();
+
+            if (nearby) LC4_enterVehicle(nearby);
+
+        }
+
+    }
+
+    if (!LC4_CURRENT) return;
+
+    const v = LC4_CURRENT;
+
+    const input = LC3_getInput();
+
+    /* Forward and reverse */
+
+    if (input.y < -0.1) {
+
+        v.speed += LC4.acceleration * dt;
+
+    } else if (input.y > 0.1) {
+
+        v.speed -= LC4.braking * dt;
+
+    } else {
+
+        if (v.speed > 0) {
+            v.speed = Math.max(0, v.speed - LC4.friction * dt);
+        }
+
+        if (v.speed < 0) {
+            v.speed = Math.min(0, v.speed + LC4.friction * dt);
+        }
+
+    }
+
+    v.speed = clamp(
+        v.speed,
+        -LC4.reverseSpeed,
+        LC4.maxSpeed
+    );
+
+    /* Steering */
+
+    const speedFactor = Math.min(
+        1,
+        Math.abs(v.speed) / 90
+    );
+
+    if (Math.abs(v.speed) > 3) {
+
+        v.angle +=
+            input.x *
+            LC4.steering *
+            speedFactor *
+            dt *
+            (v.speed >= 0 ? 1 : -1);
+
+    }
+
+    /* Movement */
+
+    const moveX = Math.cos(v.angle) * v.speed * dt;
+    const moveY = Math.sin(v.angle) * v.speed * dt;
+
+    const nextX = clamp(
+        v.x + moveX,
+        v.width,
+        CITY.width - v.width
+    );
+
+    const nextY = clamp(
+        v.y + moveY,
+        v.height,
+        CITY.height - v.height
+    );
+
+    /* Collision */
+
+    if (!LC3_collides(nextX, v.y)) {
+
+        v.x = nextX;
+
+    } else {
+
+        v.speed *= -0.18;
+
+    }
+
+    if (!LC3_collides(v.x, nextY)) {
+
+        v.y = nextY;
+
+    } else {
+
+        v.speed *= -0.18;
+
+    }
+
+    PLAYER.x = v.x;
+    PLAYER.y = v.y;
+    PLAYER.angle = v.angle;
+
+    PLAYER.vx = Math.cos(v.angle) * v.speed;
+    PLAYER.vy = Math.sin(v.angle) * v.speed;
+
+    PLAYER.speed = Math.abs(v.speed);
+
+    PLAYER.walking = false;
+    PLAYER.sprinting = false;
+
+}
+
+/* ---------- VEHICLE RENDER ---------- */
+
+function LC4_drawVehicle(v) {
+
+    ctx.save();
+
+    ctx.translate(v.x, v.y);
+    ctx.rotate(v.angle);
+
+    const w = v.width;
+    const h = v.height;
+
+    /* Shadow */
+
+    rect(
+        -w / 2 + 4,
+        -h / 2 + 5,
+        w,
+        h,
+        "#11161b"
+    );
+
+    /* Body */
+
+    rect(
+        -w / 2,
+        -h / 2,
+        w,
+        h,
+        v.color
+    );
+
+    /* Cabin */
+
+    rect(
+        -w * 0.15,
+        -h * 0.37,
+        w * 0.43,
+        h * 0.74,
+        "#26333d"
+    );
+
+    /* Front windshield */
+
+    rect(
+        w * 0.18,
+        -h * 0.32,
+        w * 0.20,
+        h * 0.64,
+        "#8b9eac"
+    );
+
+    /* Rear windshield */
+
+    rect(
+        -w * 0.34,
+        -h * 0.30,
+        w * 0.12,
+        h * 0.60,
+        "#52616d"
+    );
+
+    /* Headlights */
+
+    rect(
+        w / 2 - 3,
+        -h / 2 + 2,
+        3,
+        5,
+        "#e5dfba"
+    );
+
+    rect(
+        w / 2 - 3,
+        h / 2 - 7,
+        3,
+        5,
+        "#e5dfba"
+    );
+
+    /* Wheels */
+
+    rect(-w * 0.28, -h / 2 - 2, 10, 4, "#111317);
+    rect(w * 0.22, -h / 2 - 2, 10, 4, "#111317);
+    rect(-w * 0.28, h / 2 - 2, 10, 4, "#111317);
+    rect(w * 0.22, h / 2 - 2, 10, 4, "#111317);
+
+    /* Occupied indicator */
+
+    if (v === LC4_CURRENT) {
+
+        outlineRect(
+            -w / 2 - 3,
+            -h / 2 - 3,
+            w + 6,
+            h + 6,
+            "#d5e0e8",
+            1
+        );
+
+    }
+
+    ctx.restore();
+
+}
+
+/* ---------- VEHICLE LAYER ---------- */
+
+function LC4_drawAllVehicles() {
+
+    for (const v of LC4_VEHICLES) {
+
+        LC4_drawVehicle(v);
+
+    }
+
+}
+
+/* ---------- PLAYER RENDER OVERRIDE ---------- */
+
+const LC4_originalDrawPlayer = drawPlayer;
+
+drawPlayer = function() {
+
+    LC4_drawAllVehicles();
+
+    if (LC4_CURRENT) return;
+
+    LC4_originalDrawPlayer();
+
+};
+
+/* ---------- UPDATE INTEGRATION ---------- */
+
+const LC4_originalUpdate = update;
+
+update = function(dt) {
+
+    LC4_originalUpdate(dt);
+
+    if (ENGINE.screen === "game") {
+
+        if (LC4_CURRENT) {
+
+            LC4_update(dt);
+
+        }
+
+    }
+
+};
+
+/* ---------- PLAYER MOVEMENT OVERRIDE ---------- */
+
+const LC4_originalLC3UpdatePlayer = LC3_updatePlayer;
+
+LC3_updatePlayer = function(dt) {
+
+    if (LC4_CURRENT) return;
+
+    LC4_originalLC3UpdatePlayer(dt);
+
+};
+
+/* ---------- MOBILE INTERACTION BUTTON ---------- */
+
+const LC4_BUTTON = document.createElement("div");
+
+LC4_BUTTON.innerHTML = "ENTER";
+LC4_BUTTON.style.cssText = `
+position:fixed;
+right:125px;
+bottom:38px;
+width:76px;
+height:76px;
+border-radius:50%;
+border:1px solid rgba(220,230,240,.25);
+background:rgba(15,20,26,.48);
+color:#e6edf3;
+display:none;
+align-items:center;
+justify-content:center;
+font-family:Arial;
+font-size:10px;
+letter-spacing:2px;
+z-index:51;
+touch-action:none;
+`;
+
+document.body.appendChild(LC4_BUTTON);
+
+LC4_BUTTON.addEventListener("pointerdown", e => {
+
+    e.preventDefault();
+
+    if (ENGINE.screen !== "game") return;
+
+    LC4_INTERACT = true;
+
+});
+
+/* ---------- BUTTON STATE ---------- */
+
+function LC4_updateButton() {
+
+    if (ENGINE.screen !== "game") {
+
+        LC4_BUTTON.style.display = "none";
+        return;
+
+    }
+
+    const near = LC4_nearestVehicle();
+
+    if (LC4_CURRENT) {
+
+        LC4_BUTTON.style.display = "flex";
+        LC4_BUTTON.innerHTML = "EXIT";
+
+    } else if (near) {
+
+        LC4_BUTTON.style.display = "flex";
+        LC4_BUTTON.innerHTML = "ENTER";
+
+    } else {
+
+        LC4_BUTTON.style.display = "none";
+
+    }
+
+}
+
+/* ---------- FINAL UPDATE HOOK ---------- */
+
+const LC4_previousUpdate = update;
+
+update = function(dt) {
+
+    LC4_previousUpdate(dt);
+
+    LC4_updateButton();
+
+};
+
+/* ---------- INITIALIZATION ---------- */
+
+LC4_updateButton();
+
+/* ==========================================
+   PART 4 END        
+========================================== */   
+/* ==========================================
+   LUIT CITY — PART 5
+   NPC & TRAFFIC SYSTEM
+   TRENDIX STUDIOS
+========================================== */
+
+const LC5 = {
+    active: true,
+    trafficCount: 14,
+    pedestrianCount: 26,
+    traffic: [],
+    pedestrians: [],
+    initialized: false
+};
+
+/* ---------- UTILITIES ---------- */
+
+function LC5_random(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function LC5_distance(x1, y1, x2, y2) {
+    return Math.hypot(x2 - x1, y2 - y1);
+}
+
+/* ---------- TRAFFIC ROUTES ---------- */
+
+LC5.routes = [
+    [
+        {x: 1800, y: 2400},
+        {x: 4200, y: 2400},
+        {x: 4200, y: 2800},
+        {x: 1800, y: 2800}
+    ],
+    [
+        {x: 2000, y: 4000},
+        {x: 4000, y: 4000},
+        {x: 4000, y: 4400},
+        {x: 2000, y: 4400}
+    ],
+    [
+        {x: 2500, y: 1800},
+        {x: 2500, y: 4200},
+        {x: 2900, y: 4200},
+        {x: 2900, y: 1800}
+    ],
+    [
+        {x: 3500, y: 1800},
+        {x: 3500, y: 4200},
+        {x: 3900, y: 4200},
+        {x: 3900, y: 1800}
+    ]
+];
+
+/* ---------- VEHICLE COLORS ---------- */
+
+LC5.carColors = [
+    "#c7cbd0",
+    "#24282d",
+    "#b94c40",
+    "#d6b45c",
+    "#547b92",
+    "#e0e0e0",
+    "#526b50"
+];
+
+/* ---------- CREATE TRAFFIC ---------- */
+
+function LC5_createTraffic() {
+
+    LC5.traffic = [];
+
+    for (let i = 0; i < LC5.trafficCount; i++) {
+
+        const route =
+            LC5.routes[i % LC5.routes.length];
+
+        const start =
+            Math.floor(Math.random() * route.length);
+
+        LC5.traffic.push({
+
+            route: route,
+
+            index: start,
+
+            x: route[start].x,
+            y: route[start].y,
+
+            target: (start + 1) % route.length,
+
+            speed: LC5_random(90, 155),
+
+            angle: 0,
+
+            color:
+                LC5.carColors[
+                    Math.floor(
+                        Math.random() *
+                        LC5.carColors.length
+                    )
+                ],
+
+            width: 24,
+            height: 42,
+
+            active: true
+
+        });
+
+    }
+}
+
+/* ---------- CREATE PEDESTRIANS ---------- */
+
+function LC5_createPedestrians() {
+
+    LC5.pedestrians = [];
+
+    for (let i = 0; i < LC5.pedestrianCount; i++) {
+
+        LC5.pedestrians.push({
+
+            x: LC5_random(1600, 4400),
+            y: LC5_random(1600, 4400),
+
+            angle: LC5_random(0, Math.PI * 2),
+
+            speed: LC5_random(18, 38),
+
+            directionTimer: LC5_random(1, 5),
+
+            radius: 5,
+
+            color: [
+                "#d5d5d5",
+                "#b7a18a",
+                "#738b9e",
+                "#8b7c9d",
+                "#c6a06b",
+                "#727a73"
+            ][Math.floor(Math.random() * 6)]
+
+        });
+
+    }
+
+}
+
+/* ---------- INITIALIZE ---------- */
+
+function LC5_init() {
+
+    if (LC5.initialized) return;
+
+    LC5_createTraffic();
+    LC5_createPedestrians();
+
+    LC5.initialized = true;
+
+}
+
+LC5_init();
+
+/* ---------- TRAFFIC UPDATE ---------- */
+
+function LC5_updateTraffic(dt) {
+
+    for (const car of LC5.traffic) {
+
+        if (!car.active) continue;
+
+        const target =
+            car.route[car.target];
+
+        const dx = target.x - car.x;
+        const dy = target.y - car.y;
+
+        const distance = Math.hypot(dx, dy);
+
+        if (distance < 8) {
+
+            car.index = car.target;
+
+            car.target =
+                (car.target + 1) %
+                car.route.length;
+
+            continue;
+        }
+
+        car.angle = Math.atan2(dy, dx);
+
+        const move =
+            Math.min(car.speed * dt, distance);
+
+        car.x +=
+            Math.cos(car.angle) * move;
+
+        car.y +=
+            Math.sin(car.angle) * move;
+
+    }
+
+}
+
+/* ---------- PEDESTRIAN UPDATE ---------- */
+
+function LC5_updatePedestrians(dt) {
+
+    for (const npc of LC5.pedestrians) {
+
+        npc.directionTimer -= dt;
+
+        if (npc.directionTimer <= 0) {
+
+            npc.angle += LC5_random(-1.5, 1.5);
+
+            npc.directionTimer =
+                LC5_random(1.5, 4);
+
+        }
+
+        npc.x +=
+            Math.cos(npc.angle) *
+            npc.speed * dt;
+
+        npc.y +=
+            Math.sin(npc.angle) *
+            npc.speed * dt;
+
+        // Keep NPCs inside city boundaries
+
+        npc.x = Math.max(
+            100,
+            Math.min(CITY.width - 100, npc.x)
+        );
+
+        npc.y = Math.max(
+            100,
+            Math.min(CITY.height - 100, npc.y)
+        );
+
+    }
+
+}
+
+/* ---------- NPC UPDATE ---------- */
+
+function LC5_update(dt) {
+
+    if (!LC5.active) return;
+
+    LC5_updateTraffic(dt);
+    LC5_updatePedestrians(dt);
+
+}
+
+/* ---------- DRAW TRAFFIC ---------- */
+
+function LC5_drawTraffic() {
+
+    for (const car of LC5.traffic) {
+
+        ctx.save();
+
+        ctx.translate(car.x, car.y);
+        ctx.rotate(car.angle);
+
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.fillRect(-12, -19, 25, 42);
+
+        // Car body
+        ctx.fillStyle = car.color;
+        ctx.fillRect(-10, -19, 20, 38);
+
+        // Cabin
+        ctx.fillStyle = "#202831";
+        ctx.fillRect(-7, -8, 14, 15);
+
+        // Windshield
+        ctx.fillStyle = "#758b99";
+        ctx.fillRect(-7, -14, 14, 6);
+
+        // Rear window
+        ctx.fillStyle = "#52616b";
+        ctx.fillRect(-7, 9, 14, 6);
+
+        // Headlights
+        ctx.fillStyle = "#f2e6b2";
+        ctx.fillRect(-8, -19, 4, 2);
+        ctx.fillRect(4, -19, 4, 2);
+
+        // Rear lights
+        ctx.fillStyle = "#bd403a";
+        ctx.fillRect(-8, 17, 4, 2);
+        ctx.fillRect(4, 17, 4, 2);
+
+        ctx.restore();
+
+    }
+
+}
+
+/* ---------- DRAW PEDESTRIANS ---------- */
+
+function LC5_drawPedestrians() {
+
+    for (const npc of LC5.pedestrians) {
+
+        ctx.save();
+
+        ctx.translate(npc.x, npc.y);
+        ctx.rotate(npc.angle);
+
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.22)";
+        ctx.beginPath();
+        ctx.ellipse(0, 2, 5, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Body
+        ctx.fillStyle = npc.color;
+        ctx.beginPath();
+        ctx.arc(0, 0, npc.radius, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Head
+        ctx.fillStyle = "#c5a17c";
+        ctx.beginPath();
+        ctx.arc(0, -5, 3, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Direction marker
+        ctx.fillStyle = "#e5e5e5";
+        ctx.fillRect(-1, -9, 2, 3);
+
+        ctx.restore();
+
+    }
+
+}
+
+/* ---------- WORLD DRAW ---------- */
+
+function LC5_drawNPCWorld() {
+
+    if (!LC5.active) return;
+
+    ctx.save();
+
+    LC5_drawTraffic();
+    LC5_drawPedestrians();
+
+    ctx.restore();
+
+}
+
+/* ---------- UPDATE HOOK ---------- */
+
+const LC5_previousUpdate = update;
+
+update = function(dt) {
+
+    LC5_previousUpdate(dt);
+
+    if (ENGINE.screen === "game") {
+        LC5_update(dt);
+    }
+
+};
+
+/* ---------- RENDER HOOK ---------- */
+
+const LC5_previousRenderGame = renderGame;
+
+renderGame = function() {
+
+    LC5_previousRenderGame();
+
+    if (ENGINE.screen !== "game") return;
+
+    ctx.save();
+
+    ctx.translate(
+        -CAMERA.x,
+        -CAMERA.y
+    );
+
+    LC5_drawNPCWorld();
+
+    ctx.restore();
+
+};
+
+/* ---------- PART 5 COMPLETE ---------- */
+            
