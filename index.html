@@ -152,7 +152,15 @@ body {
 </div>
 
 <script>
-
+window.onerror = function(message, source, line, column, error) {
+    document.body.innerHTML = `
+        <div style="background:#080a0d;color:#ff5555;padding:20px;font-family:monospace;min-height:100vh;">
+            <h2>LUIT CITY ERROR</h2>
+            <p>${message}</p>
+            <p>Line: ${line}</p>
+        </div>
+    `;
+};
 /* =====================================
    LUIT CITY — PART 1
    TRENDIX STUDIOS
