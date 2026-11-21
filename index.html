@@ -3946,8 +3946,41 @@ update = function(dt) {
     LC6_previousUpdate(dt);
 
     if (ENGINE.screen === "game") {
-        LC6_update(dt);
+
+    if (!LC6.current) {
+
+        const px = LC4_CURRENT
+            ? LC4_CURRENT.x
+            : PLAYER.x;
+
+        const py = LC4_CURRENT
+            ? LC4_CURRENT.y
+            : PLAYER.y;
+
+        for (const mission of LC6.missions) {
+
+            if (LC6.completed.includes(mission.id))
+                continue;
+
+            const distance = LC5_distance(
+                px,
+                py,
+                mission.start.x,
+                mission.start.y
+            );
+
+            if (distance < 100) {
+                LC6_startMission(mission.id);
+                break;
+            }
+
+        }
+
     }
+
+    LC6_update(dt);
+
+        }
 
 };
 
