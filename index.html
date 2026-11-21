@@ -3659,7 +3659,7 @@ function LC6_startMission(id) {
     if (!mission) return;
 
     if (LC6.completed.includes(id)) {
-        LC6_notify("MISSION ALREADY COMPLETED");
+        LC6.notify("MISSION ALREADY COMPLETED");
         return;
     }
 
@@ -3673,7 +3673,7 @@ function LC6_startMission(id) {
 
     };
 
-    LC6_notify("MISSION STARTED: " + mission.name);
+    LC6.notify("MISSION STARTED: " + mission.name);
 
 }
 
@@ -3715,7 +3715,7 @@ function LC6_update(dt) {
 
         LC6.current = null;
 
-        LC6_notify("MISSION FAILED");
+        LC6.notify("MISSION FAILED");
 
         return;
 
