@@ -3589,3 +3589,394 @@ renderGame = function() {
 
 /* ---------- PART 5 COMPLETE ---------- */
             
+/* ==========================================
+   LUIT CITY — PART 6
+   MISSION SYSTEM
+   TRENDIX STUDIOS
+========================================== */
+
+const LC6 = {
+
+    active: true,
+
+    current: null,
+
+    completed: [],
+
+    totalReward: 0,
+
+    message: "",
+
+    messageTimer: 0,
+
+    missions: [
+
+        {
+            id: 1,
+            name: "THE FIRST MOVE",
+            description: "Reach the marked destination.",
+            start: { x: 3000, y: 3400 },
+            target: { x: 3900, y: 2400 },
+            reward: 250,
+            type: "reach",
+            radius: 90
+        },
+
+        {
+            id: 2,
+            name: "CITY RUN",
+            description: "Reach the destination before time runs out.",
+            start: { x: 3900, y: 2400 },
+            target: { x: 2100, y: 4200 },
+            reward: 500,
+            type: "timed",
+            time: 100,
+            radius: 100
+        },
+
+        {
+            id: 3,
+            name: "THE EXPLORER",
+            description: "Explore the city and reach the destination.",
+            start: { x: 2100, y: 4200 },
+            target: { x: 4500, y: 3500 },
+            reward: 350,
+            type: "reach",
+            radius: 120
+        }
+
+    ]
+
+};
+
+/* ---------- MISSION START ---------- */
+
+function LC6_startMission(id) {
+
+    if (LC6.current) return;
+
+    const mission =
+        LC6.missions.find(m => m.id === id);
+
+    if (!mission) return;
+
+    if (LC6.completed.includes(id)) {
+        LC6_notify("MISSION ALREADY COMPLETED");
+        return;
+    }
+
+    LC6.current = {
+
+        data: mission,
+
+        timer: mission.time || 0,
+
+        started: true
+
+    };
+
+    LC6_notify("MISSION STARTED: " + mission.name);
+
+}
+
+/* ---------- MISSION UPDATE ---------- */
+
+function LC6_update(dt) {
+
+    if (!LC6.active) return;
+
+    LC6.messageTimer -= dt;
+
+    if (!LC6.current) return;
+
+    const mission = LC6.current.data;
+
+    LC6.current.timer -= dt;
+
+    const px = LC4_CURRENT
+        ? LC4_CURRENT.x
+        : PLAYER.x;
+
+    const py = LC4_CURRENT
+        ? LC4_CURRENT.y
+        : PLAYER.y;
+
+    const distance =
+        LC5_distance(
+            px,
+            py,
+            mission.target.x,
+            mission.target.y
+        );
+
+    // Time failure
+    if (
+        mission.type === "timed" &&
+        LC6.current.timer <= 0
+    ) {
+
+        LC6.current = null;
+
+        LC6_notify("MISSION FAILED");
+
+        return;
+
+    }
+
+    // Mission completion
+    if (distance <= mission.radius) {
+
+        LC6.completed.push(mission.id);
+
+        LC6.totalReward += mission.reward;
+
+        LC6.notify(
+            "MISSION COMPLETE +" +
+            mission.reward
+        );
+
+        LC6.current = null;
+
+    }
+
+}
+
+/* ---------- NOTIFICATIONS ---------- */
+
+LC6.notify = function(message) {
+
+    LC6.message = message;
+
+    LC6.messageTimer = 3.5;
+
+};
+
+/* ---------- MISSION MARKER ---------- */
+
+function LC6_drawMarker() {
+
+    if (!LC6.current) return;
+
+    const target =
+        LC6.current.data.target;
+
+    const pulse =
+        1 + Math.sin(ENGINE.time * 4) * 0.15;
+
+    ctx.save();
+
+    ctx.translate(target.x, target.y);
+
+    ctx.scale(pulse, pulse);
+
+    // Outer circle
+    ctx.beginPath();
+    ctx.arc(0, 0, 48, 0, Math.PI * 2);
+
+    ctx.strokeStyle = "#e2c16b";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+
+    // Inner marker
+    ctx.beginPath();
+    ctx.arc(0, 0, 16, 0, Math.PI * 2);
+
+    ctx.fillStyle = "#e2c16b";
+    ctx.fill();
+
+    // Marker beam
+    ctx.beginPath();
+    ctx.moveTo(0, -48);
+    ctx.lineTo(0, -125);
+
+    ctx.strokeStyle = "rgba(226,193,107,0.55)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.restore();
+
+}
+
+/* ---------- MISSION HUD ---------- */
+
+function LC6_drawHUD() {
+
+    if (ENGINE.screen !== "game") return;
+
+    ctx.save();
+
+    // Active mission
+    if (LC6.current) {
+
+        const mission = LC6.current.data;
+
+        const boxX = 24;
+        const boxY = 95;
+        const boxW = 285;
+        const boxH = 100;
+
+        ctx.fillStyle = "rgba(12,15,19,0.88)";
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+
+        ctx.strokeStyle = "#c7a45b";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+        ctx.textAlign = "left";
+
+        ctx.fillStyle = "#d7b568";
+        ctx.font = "bold 13px Arial";
+
+        ctx.fillText(
+            "ACTIVE MISSION",
+            boxX + 15,
+            boxY + 22
+        );
+
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 16px Arial";
+
+        ctx.fillText(
+            mission.name,
+            boxX + 15,
+            boxY + 45
+        );
+
+        ctx.fillStyle = "#aeb5bc";
+        ctx.font = "12px Arial";
+
+        ctx.fillText(
+            mission.description,
+            boxX + 15,
+            boxY + 65
+        );
+
+        if (mission.type === "timed") {
+
+            ctx.fillStyle = "#d7b568";
+
+            ctx.fillText(
+                "TIME: " +
+                Math.ceil(LC6.current.timer) +
+                "s",
+                boxX + 15,
+                boxY + 85
+            );
+
+        }
+
+    }
+
+    // Notification
+    if (LC6.messageTimer > 0) {
+
+        ctx.textAlign = "center";
+
+        ctx.fillStyle = "rgba(10,12,15,0.88)";
+        ctx.fillRect(
+            W / 2 - 190,
+            65,
+            380,
+            45
+        );
+
+        ctx.strokeStyle = "#c7a45b";
+        ctx.strokeRect(
+            W / 2 - 190,
+            65,
+            380,
+            45
+        );
+
+        ctx.fillStyle = "#e0c16b";
+        ctx.font = "bold 14px Arial";
+
+        ctx.fillText(
+            LC6.message,
+            W / 2,
+            93
+        );
+
+    }
+
+    ctx.restore();
+
+}
+
+/* ---------- MISSION LIST ---------- */
+
+function LC6_drawMissionList() {
+
+    if (ENGINE.screen !== "game") return;
+
+    ctx.save();
+
+    ctx.textAlign = "right";
+
+    ctx.font = "12px Arial";
+
+    ctx.fillStyle = "#d5d5d5";
+
+    ctx.fillText(
+        "MISSIONS " +
+        LC6.completed.length +
+        "/" +
+        LC6.missions.length,
+        W - 25,
+        35
+    );
+
+    ctx.fillStyle = "#d7b568";
+
+    ctx.fillText(
+        "REWARDS $" +
+        LC6.totalReward,
+        W - 25,
+        55
+    );
+
+    ctx.restore();
+
+}
+
+/* ---------- UPDATE HOOK ---------- */
+
+const LC6_previousUpdate = update;
+
+update = function(dt) {
+
+    LC6_previousUpdate(dt);
+
+    if (ENGINE.screen === "game") {
+        LC6_update(dt);
+    }
+
+};
+
+/* ---------- RENDER HOOK ---------- */
+
+const LC6_previousRenderGame = renderGame;
+
+renderGame = function() {
+
+    LC6_previousRenderGame();
+
+    if (ENGINE.screen !== "game") return;
+
+    ctx.save();
+
+    ctx.translate(
+        -CAMERA.x,
+        -CAMERA.y
+    );
+
+    LC6_drawMarker();
+
+    ctx.restore();
+
+    LC6_drawHUD();
+    LC6_drawMissionList();
+
+};
+
+/* ---------- PART 6 COMPLETE ---------- */
