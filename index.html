@@ -3065,7 +3065,9 @@ function LC4_drawAllVehicles() {
 }
 
 /* ---------- PLAYER RENDER OVERRIDE ---------- */
-
+function drawPlayer() {
+    drawPlayerMarker(ctx);
+    }
 const LC4_originalDrawPlayer = drawPlayer;
 
 drawPlayer = function() {
